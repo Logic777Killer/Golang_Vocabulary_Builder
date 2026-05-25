@@ -1,0 +1,8 @@
+/server
+*.exe
+vendor/
+.env
+*.local
+*.log
+.idea/ .vscode/
+.DS_Store Thumbs.db

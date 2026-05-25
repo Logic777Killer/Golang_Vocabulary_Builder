@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocabulary Builder</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="container">
+    <h1>📚 Словарь для изучения языка</h1>
+
+    <section class="card">
+        <h2>Добавить слово</h2>
+        <form id="add-form">
+            <input type="text" id="word" placeholder="Слово" required>
+            <input type="text" id="translation" placeholder="Перевод" required>
+            <input type="text" id="example" placeholder="Пример">
+            <select id="difficulty">
+                <option value="1">1</option><option value="2">2</option>
+                <option value="3" selected>3</option><option value="4">4</option><option value="5">5</option>
+            </select>
+            <button type="submit">Добавить</button>
+        </form>
+        <div id="add-message"></div>
+    </section>
+
+    <section class="card">
+        <h2>Повторение</h2>
+        <div id="review-area">
+            <button id="get-review-btn">Получить слово</button>
+            <div id="review-word" class="hidden">
+                <p class="word-text"><span id="r-word"></span> — <span id="r-translation"></span></p>
+                <p class="word-example">Пример: <span id="r-example"></span></p>
+                <div class="actions">
+                    <button id="recalled-btn">✅ Вспомнил</button>
+                    <button id="not-recalled-btn">❌ Не вспомнил</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Все слова</h2>
+        <button id="refresh-words-btn">Обновить</button>
+        <table id="words-table">
+            <thead><tr><th>ID</th><th>Слово</th><th>Перевод</th><th>Сложн.</th><th>Статус</th><th>След. повтор</th></tr></thead>
+            <tbody id="words-tbody"></tbody>
+        </table>
+    </section>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

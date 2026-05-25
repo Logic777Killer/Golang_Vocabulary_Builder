@@ -1,0 +1,21 @@
+:root { --bg:#f5f7fa; --card:#fff; --primary:#4a90e2; --success:#2ecc71; --danger:#e74c3c; --text:#2c3e50; --border:#e1e8ed; }
+body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+.container { max-width: 800px; margin: 0 auto; }
+.card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+h1 { text-align: center; color: var(--primary); }
+h2 { margin-top: 0; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+form { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+input, select, button { padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; }
+input, select { flex: 1; min-width: 150px; }
+button { background: var(--primary); color: white; cursor: pointer; border: none; font-weight: 500; }
+button:hover { opacity: 0.9; }
+.hidden { display: none; }
+#review-word { margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; }
+.actions { display: flex; gap: 10px; margin-top: 10px; }
+#recalled-btn { background: var(--success); }
+#not-recalled-btn { background: var(--danger); }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); }
+th { background: #f8f9fa; }
+#add-message { margin-top: 10px; font-weight: bold; }
+.success { color: var(--success); } .error { color: var(--danger); }
