@@ -1,0 +1,13 @@
+.git
+*.exe
+*.dll
+vendor/
+bin/
+.idea/
+.vscode/
+*.log
+.env
+*.docx
+*.pdf
+Dockerfile
+.dockerignore
