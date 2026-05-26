@@ -1,38 +1,35 @@
 package config
 
 import (
-	"os"
-	"strconv"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
 	Port                string
-	DatabaseURL         string
 	LogLevel            string
 	ReviewIntervalHours int
+	DatabaseURL         string
 }
 
 func Load() *Config {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	v := viper.New()
 
-	logLevel := os.Getenv("LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = "info"
-	}
+	v.SetDefault("PORT", "8080")
+	v.SetDefault("LOG_LEVEL", "info")
+	v.SetDefault("REVIEW_INTERVAL_HOURS", 24)
+	v.SetDefault("DATABASE_URL", "")
 
-	intervalStr := os.Getenv("REVIEW_INTERVAL_HOURS")
-	interval := 24
-	if val, err := strconv.Atoi(intervalStr); err == nil {
-		interval = val
-	}
+	v.SetConfigName("config")
+	v.SetConfigType("yaml")
+	v.AddConfigPath(".")
+	_ = v.ReadInConfig()
+
+	v.AutomaticEnv()
 
 	return &Config{
-		Port:                port,
-		DatabaseURL:         os.Getenv("DATABASE_URL"),
-		LogLevel:            logLevel,
-		ReviewIntervalHours: interval,
+		Port:                v.GetString("PORT"),
+		LogLevel:            v.GetString("LOG_LEVEL"),
+		ReviewIntervalHours: v.GetInt("REVIEW_INTERVAL_HOURS"),
+		DatabaseURL:         v.GetString("DATABASE_URL"),
 	}
 }
