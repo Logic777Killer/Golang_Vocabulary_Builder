@@ -1,70 +1,70 @@
 package repository
 
 import (
-	"sync"
+	"context"
+	"database/sql"
 	"time"
 	"vocab-app/internal/model"
 )
 
 type WordRepository struct {
-	words  map[int64]*model.Word
-	nextID int64
-	mu     sync.RWMutex
+	db *sql.DB
 }
 
-func NewWordRepository() *WordRepository {
-	return &WordRepository{
-		words:  make(map[int64]*model.Word),
-		nextID: 1,
-	}
+func NewWordRepository(db *sql.DB) *WordRepository {
+	return &WordRepository{db: db}
 }
 
 func (r *WordRepository) Create(w *model.Word) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	w.ID = r.nextID
-	r.nextID++
-	w.CreatedAt = time.Now()
+	query := `INSERT INTO words (word, translation, example, difficulty, next_review, status, created_at)
+			  VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
 	if w.NextReview.IsZero() {
-		w.NextReview = w.CreatedAt
+		w.NextReview = time.Now()
 	}
 	if w.Status == "" {
 		w.Status = model.StatusNew
 	}
-	r.words[w.ID] = w
-	return nil
+	w.CreatedAt = time.Now()
+
+	return r.db.QueryRowContext(context.Background(), query,
+		w.Word, w.Translation, w.Example, w.Difficulty, w.NextReview, w.Status, w.CreatedAt).Scan(&w.ID)
 }
 
 func (r *WordRepository) GetAll() ([]*model.Word, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	res := make([]*model.Word, 0, len(r.words))
-	for _, w := range r.words {
-		res = append(res, w)
+	rows, err := r.db.QueryContext(context.Background(),
+		"SELECT id, word, translation, example, difficulty, next_review, status, created_at FROM words")
+	if err != nil {
+		return nil, err
 	}
-	return res, nil
+	defer rows.Close()
+
+	var words []*model.Word
+	for rows.Next() {
+		w := &model.Word{}
+		if err := rows.Scan(&w.ID, &w.Word, &w.Translation, &w.Example, &w.Difficulty, &w.NextReview, &w.Status, &w.CreatedAt); err != nil {
+			return nil, err
+		}
+		words = append(words, w)
+	}
+	return words, rows.Err()
 }
 
 func (r *WordRepository) GetForReview() (*model.Word, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	now := time.Now()
-	for _, w := range r.words {
-		if w.Status != model.StatusMastered && !w.NextReview.After(now) {
-			return w, nil
-		}
+	w := &model.Word{}
+	err := r.db.QueryRowContext(context.Background(),
+		"SELECT id, word, translation, example, difficulty, next_review, status, created_at FROM words WHERE status != 'mastered' AND next_review <= NOW() LIMIT 1").
+		Scan(&w.ID, &w.Word, &w.Translation, &w.Example, &w.Difficulty, &w.NextReview, &w.Status, &w.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
 	}
-	return nil, nil
+	if err != nil {
+		return nil, err
+	}
+	return w, nil
 }
 
 func (r *WordRepository) UpdateProgress(id int64, status string, next time.Time) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	w, ok := r.words[id]
-	if !ok {
-		return nil
-	}
-	w.Status = status
-	w.NextReview = next
-	return nil
+	_, err := r.db.ExecContext(context.Background(),
+		"UPDATE words SET status = $1, next_review = $2 WHERE id = $3", status, next, id)
+	return err
 }

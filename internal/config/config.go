@@ -1,35 +1,45 @@
 package config
 
-import (
-	"github.com/spf13/viper"
-)
+import "github.com/spf13/viper"
 
 type Config struct {
 	Port                string
 	LogLevel            string
 	ReviewIntervalHours int
-	DatabaseURL         string
+	DBHost              string
+	DBPort              int
+	DBName              string
+	DBUser              string
+	DBPass              string
 }
 
 func Load() *Config {
 	v := viper.New()
-
 	v.SetDefault("PORT", "8080")
 	v.SetDefault("LOG_LEVEL", "info")
 	v.SetDefault("REVIEW_INTERVAL_HOURS", 24)
-	v.SetDefault("DATABASE_URL", "")
+	v.SetDefault("DB_HOST", "localhost")
+	v.SetDefault("DB_PORT", 5432)
+	v.SetDefault("DB_NAME", "vocab")
+	v.SetDefault("DB_USER", "postgres")
+	v.SetDefault("DB_PASS", "secret")
+
+	v.AutomaticEnv()
+	v.BindEnv("PORT", "LOG_LEVEL", "REVIEW_INTERVAL_HOURS", "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASS")
 
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
 	v.AddConfigPath(".")
 	_ = v.ReadInConfig()
 
-	v.AutomaticEnv()
-
 	return &Config{
 		Port:                v.GetString("PORT"),
 		LogLevel:            v.GetString("LOG_LEVEL"),
 		ReviewIntervalHours: v.GetInt("REVIEW_INTERVAL_HOURS"),
-		DatabaseURL:         v.GetString("DATABASE_URL"),
+		DBHost:              v.GetString("DB_HOST"),
+		DBPort:              v.GetInt("DB_PORT"),
+		DBName:              v.GetString("DB_NAME"),
+		DBUser:              v.GetString("DB_USER"),
+		DBPass:              v.GetString("DB_PASS"),
 	}
 }
