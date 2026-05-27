@@ -2,30 +2,29 @@
 FROM golang:1.25.8-alpine AS builder
 
 WORKDIR /app
-
-# Копируем ВСЁ сразу (внешних зависимостей нет, кэшировать нечего)
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . .
 
-# Собираем бинарник (просто go build, без лишних флагов)
-RUN go build -o server ./cmd/server
+# Собираем основной сервер
+RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
 
-# Этап 2: Минимальный образ для запуска
+# Собираем админ-утилиту
+RUN CGO_ENABLED=0 GOOS=linux go build -o admin ./cmd/admin
+
+# Этап 2: Минимальный образ
 FROM alpine:3.19
 
-# Создаём пользователя для безопасности
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
-
-# Копируем только готовый бинарник и фронтенд
 COPY --from=builder /app/server .
+COPY --from=builder /app/admin .
 COPY --from=builder /app/web ./web
 
-# Запускаем от обычного пользователя
 USER appuser
 
-# Порт приложения
 EXPOSE 8080
 
-# Команда запуска
+# По умолчанию запускаем сервер
 CMD ["./server"]
