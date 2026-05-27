@@ -19,6 +19,11 @@ services:
     restart: unless-stopped
     deploy:
       replicas: 1
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   db:
     image: postgres:15-alpine

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"vocab-app/pkg/middleware"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -25,11 +26,11 @@ func NewHandler(svc *service.WordService, logger *slog.Logger, rdb *redis.Client
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/words", h.handleWords)
-	mux.HandleFunc("/api/words/review", h.handleReview)
-	mux.HandleFunc("/api/words/progress", h.handleProgress)
-	mux.HandleFunc("/api/health", h.handleHealth)
-	mux.HandleFunc("/api/session", h.handleSession)
+	mux.HandleFunc("/api/words", middleware.WithRequestID(h.handleWords))
+	mux.HandleFunc("/api/words/review", middleware.WithRequestID(h.handleReview))
+	mux.HandleFunc("/api/words/progress", middleware.WithRequestID(h.handleProgress))
+	mux.HandleFunc("/api/health", middleware.WithRequestID(h.handleHealth))
+	mux.HandleFunc("/api/session", middleware.WithRequestID(h.handleSession))
 }
 
 func (h *Handler) handleWords(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +39,8 @@ func (h *Handler) handleWords(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodGet {
+		reqID := middleware.FromContext(r.Context())
+		h.logger.Info("get all words", "request_id", reqID)
 		h.getAllWords(w, r)
 		return
 	}
@@ -109,13 +112,17 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
+	reqID := middleware.FromContext(r.Context())
+	h.logger.Info("health check", "request_id", reqID)
+
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Request-ID", reqID)
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 func (h *Handler) handleSession(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	
+
 	cookie, err := r.Cookie("session_id")
 	var sessionID string
 
