@@ -11,6 +11,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/redis/go-redis/v9"
 	"vocab-app/internal/config"
 	"vocab-app/internal/handler"
 	"vocab-app/internal/repository"
@@ -21,8 +22,22 @@ import (
 func main() {
 	cfg := config.Load()
 	log := logger.New(cfg.LogLevel)
-	log.Info("starting vocabulary builder", "port", cfg.Port)
 
+	appEnv := os.Getenv("APP_ENV")
+	if appEnv == "" {
+		appEnv = "development"
+	}
+	appVersion := os.Getenv("APP_VERSION")
+	if appVersion == "" {
+		appVersion = "local-build"
+	}
+
+	log.Info("starting vocabulary builder",
+		"port", cfg.Port,
+		"env", appEnv,
+		"version", appVersion)
+
+	// Подключение к БД
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPass, cfg.DBName)
 
@@ -31,7 +46,6 @@ func main() {
 		log.Error("failed to open db", "error", err)
 		os.Exit(1)
 	}
-
 	if err := db.Ping(); err != nil {
 		log.Error("failed to connect to db, waiting...", "error", err)
 		time.Sleep(5 * time.Second)
@@ -58,14 +72,28 @@ func main() {
 	}
 	log.Info("database connected and initialized")
 
+	// Подключение к Redis
+	rdb := redis.NewClient(&redis.Options{
+		Addr: cfg.RedisAddr,
+	})
+	if _, err := rdb.Ping(context.Background()).Result(); err != nil {
+		log.Warn("Redis not available", "error", err)
+	} else {
+		log.Info("connected to Redis", "addr", cfg.RedisAddr)
+	}
+	defer rdb.Close()
+
+	// Инициализация слоёв
 	repo := repository.NewWordRepository(db)
 	svc := service.NewWordService(repo, cfg.ReviewIntervalHours)
-	h := handler.NewHandler(svc, log)
+	h := handler.NewHandler(svc, log, rdb) // ← Передаём Redis-клиент!
 
+	// Роутинг
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 	mux.Handle("/", http.FileServer(http.Dir("web")))
 
+	// Запуск сервера
 	server := &http.Server{Addr: ":" + cfg.Port, Handler: mux}
 
 	go func() {
@@ -76,6 +104,7 @@ func main() {
 		}
 	}()
 
+	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

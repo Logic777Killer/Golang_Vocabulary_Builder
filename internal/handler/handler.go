@@ -1,10 +1,15 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
+	"log/slog"
 	"vocab-app/internal/model"
 	"vocab-app/internal/service"
 )
@@ -12,10 +17,11 @@ import (
 type Handler struct {
 	svc    *service.WordService
 	logger *slog.Logger
+	redis  *redis.Client
 }
 
-func NewHandler(svc *service.WordService, logger *slog.Logger) *Handler {
-	return &Handler{svc: svc, logger: logger}
+func NewHandler(svc *service.WordService, logger *slog.Logger, rdb *redis.Client) *Handler {
+	return &Handler{svc: svc, logger: logger, redis: rdb}
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
@@ -23,6 +29,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/words/review", h.handleReview)
 	mux.HandleFunc("/api/words/progress", h.handleProgress)
 	mux.HandleFunc("/api/health", h.handleHealth)
+	mux.HandleFunc("/api/session", h.handleSession)
 }
 
 func (h *Handler) handleWords(w http.ResponseWriter, r *http.Request) {
@@ -104,4 +111,35 @@ func (h *Handler) handleProgress(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+func (h *Handler) handleSession(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	
+	cookie, err := r.Cookie("session_id")
+	var sessionID string
+
+	if err == nil && cookie.Value != "" {
+		_, err := h.redis.Get(ctx, "session:"+cookie.Value).Result()
+		if err == nil {
+			sessionID = cookie.Value
+		}
+	}
+
+	if sessionID == "" {
+		sessionID = uuid.New().String()
+		_ = h.redis.Set(ctx, "session:"+sessionID, "active", 24*time.Hour).Err()
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "session_id",
+			Value:    sessionID,
+			Path:     "/",
+			HttpOnly: false,
+			MaxAge:   86400,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"session_id": sessionID})
 }
